@@ -10,6 +10,9 @@ const state = {
   commanderToken: "",
   logisticsToken: "",
   assetName: `APC-${uid}`,
+  purchaseId: "",
+  transferId: "",
+  assignmentId: "",
 };
 
 const report = [];
@@ -128,6 +131,7 @@ async function run() {
       state.logisticsToken
     );
     expectStatus(res, 201, "create purchase");
+    state.purchaseId = res.data?._id;
   });
 
   await test("POST /purchases (commander forbidden)", async () => {
@@ -160,6 +164,7 @@ async function run() {
       state.commanderToken
     );
     expectStatus(res, 201, "create transfer");
+    state.transferId = res.data?._id;
   });
 
   await test("POST /assignments (commander allowed)", async () => {
@@ -178,6 +183,61 @@ async function run() {
       state.commanderToken
     );
     expectStatus(res, 201, "create assignment");
+    state.assignmentId = res.data?._id;
+  });
+
+  await test("PUT /purchases/:id (admin update)", async () => {
+    const res = await request(
+      "PUT",
+      `/purchases/${state.purchaseId}`,
+      {
+        quantity: 25,
+        note: "Updated by admin",
+      },
+      state.adminToken
+    );
+    expectStatus(res, 200, "update purchase");
+  });
+
+  await test("PUT /transfers/:id (admin update)", async () => {
+    const res = await request(
+      "PUT",
+      `/transfers/${state.transferId}`,
+      {
+        quantity: 4,
+        note: "Updated transfer",
+      },
+      state.adminToken
+    );
+    expectStatus(res, 200, "update transfer");
+  });
+
+  await test("PUT /assignments/:id (admin update)", async () => {
+    const res = await request(
+      "PUT",
+      `/assignments/${state.assignmentId}`,
+      {
+        quantity: 2,
+        assignedTo: "Unit Omega",
+      },
+      state.adminToken
+    );
+    expectStatus(res, 200, "update assignment");
+  });
+
+  await test("DELETE /assignments/:id (admin delete)", async () => {
+    const res = await request("DELETE", `/assignments/${state.assignmentId}`, null, state.adminToken);
+    expectStatus(res, 200, "delete assignment");
+  });
+
+  await test("DELETE /transfers/:id (admin delete)", async () => {
+    const res = await request("DELETE", `/transfers/${state.transferId}`, null, state.adminToken);
+    expectStatus(res, 200, "delete transfer");
+  });
+
+  await test("DELETE /purchases/:id (admin delete)", async () => {
+    const res = await request("DELETE", `/purchases/${state.purchaseId}`, null, state.adminToken);
+    expectStatus(res, 200, "delete purchase");
   });
 
   await test("GET /dashboard", async () => {

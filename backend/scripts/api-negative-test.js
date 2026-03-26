@@ -10,6 +10,7 @@ const state = {
   adminToken: "",
   logisticsToken: "",
   commanderToken: "",
+  purchaseId: "",
 };
 
 const results = [];
@@ -174,6 +175,22 @@ async function run() {
       state.logisticsToken
     );
     assertStatus(res, 201, "seed purchase");
+    state.purchaseId = res.data?._id;
+  });
+
+  await test("Forbidden role -> commander cannot PUT /purchases/:id", async () => {
+    const res = await request(
+      "PUT",
+      `/purchases/${state.purchaseId}`,
+      { note: "should fail" },
+      state.commanderToken
+    );
+    assertStatus(res, 403, "commander forbidden update purchase");
+  });
+
+  await test("Forbidden role -> commander cannot DELETE /purchases/:id", async () => {
+    const res = await request("DELETE", `/purchases/${state.purchaseId}`, undefined, state.commanderToken);
+    assertStatus(res, 403, "commander forbidden delete purchase");
   });
 
   await test("Insufficient stock -> transfer too much returns 400", async () => {

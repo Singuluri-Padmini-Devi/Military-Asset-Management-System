@@ -41,4 +41,79 @@ router.post("/", auth, allowRoles("Admin", "Base Commander", "Logistics Officer"
   }
 });
 
+router.put("/:id", auth, allowRoles("Admin"), async (req, res) => {
+  try {
+    const row = await Assignment.findById(req.params.id);
+    if (!row) {
+      return res.status(404).json({ message: "Assignment not found" });
+    }
+
+    const nextAssetName = req.body.assetName || row.assetName;
+    const nextCategory = req.body.category || row.category;
+    const nextBase = req.body.base || row.base;
+    const nextQuantity = Number(req.body.quantity ?? row.quantity);
+    const nextActionType = req.body.actionType || row.actionType;
+    const nextAssignedTo = req.body.assignedTo ?? row.assignedTo;
+    const nextNote = req.body.note ?? row.note;
+
+    await upsertAssetQuantity({
+      assetName: row.assetName,
+      category: row.category,
+      base: row.base,
+      quantityChange: Number(row.quantity),
+    });
+
+    try {
+      await upsertAssetQuantity({
+        assetName: nextAssetName,
+        category: nextCategory,
+        base: nextBase,
+        quantityChange: -nextQuantity,
+      });
+    } catch (error) {
+      await upsertAssetQuantity({
+        assetName: row.assetName,
+        category: row.category,
+        base: row.base,
+        quantityChange: -Number(row.quantity),
+      });
+      throw error;
+    }
+
+    row.assetName = nextAssetName;
+    row.category = nextCategory;
+    row.base = nextBase;
+    row.quantity = nextQuantity;
+    row.actionType = nextActionType;
+    row.assignedTo = nextAssignedTo;
+    row.note = nextNote;
+    await row.save();
+
+    return res.json(row);
+  } catch (error) {
+    return res.status(400).json({ message: error.message });
+  }
+});
+
+router.delete("/:id", auth, allowRoles("Admin"), async (req, res) => {
+  try {
+    const row = await Assignment.findById(req.params.id);
+    if (!row) {
+      return res.status(404).json({ message: "Assignment not found" });
+    }
+
+    await upsertAssetQuantity({
+      assetName: row.assetName,
+      category: row.category,
+      base: row.base,
+      quantityChange: Number(row.quantity),
+    });
+
+    await row.deleteOne();
+    return res.json({ message: "Assignment deleted" });
+  } catch (error) {
+    return res.status(400).json({ message: error.message });
+  }
+});
+
 module.exports = router;
